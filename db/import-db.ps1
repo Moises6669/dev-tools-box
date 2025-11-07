@@ -32,10 +32,30 @@ if ($DbName -notmatch '^[A-Za-z0-9_]+$') {
 Write-Host "🆔 Base de datos objetivo: '$DbName' (derivada del archivo)" -ForegroundColor Cyan
 
 # 2) ruta fija para mysql.exe de Laragon
-$mysqlExe = "C:\laragon\bin\mysql\mysql-8.0.30-winx64\bin\mysql.exe"
+
+# Ruta por defecto y archivo de configuración
+$configFile = Join-Path $PSScriptRoot 'mysql-path.txt'
+$defaultMysqlExe = "C:\laragon\bin\mysql\mysql-8.0.30-winx64\bin\mysql.exe"
+
+# Leer ruta guardada si existe
+if (Test-Path $configFile) {
+  $mysqlExe = Get-Content $configFile -Raw
+} else {
+  $mysqlExe = $defaultMysqlExe
+}
+
 if (-not (Test-Path $mysqlExe)) {
-  Write-Host "⚠️ No encontré mysql.exe en la ruta especificada: $mysqlExe. Ajustá la ruta si Laragon está en otro lugar." -ForegroundColor Yellow
-  exit 1
+  Write-Host "⚠️ No encontré mysql.exe en la ruta especificada: $mysqlExe" -ForegroundColor Yellow
+  $newPath = Read-Host "Por favor ingresa la ruta completa de mysql.exe"
+  # Limpiar comillas si el usuario las pone
+  $newPath = $newPath.Trim('"')
+  if (-not (Test-Path $newPath)) {
+    Write-Host "❌ La ruta ingresada no es válida o no existe: $newPath" -ForegroundColor Red
+    exit 1
+  }
+  $mysqlExe = $newPath
+  Set-Content -Path $configFile -Value $mysqlExe
+  Write-Host "✅ Ruta guardada en $configFile" -ForegroundColor Green
 }
 
 # 3) Pedir contraseña (si queda vacía, se intenta sin --password)
