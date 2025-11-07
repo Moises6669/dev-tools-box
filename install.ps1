@@ -66,17 +66,31 @@ if ($IsRemote) {
   Remove-Item -Path $rootPath -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-# === 3) Asegurar PATH de usuario
-$pathSet = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-$env:Path.Split(';') | ForEach-Object { if ($_ -and $_.Trim()) { $null = $pathSet.Add($_.Trim()) } }
-if (-not ($pathSet.Contains($InstallDir))) {
-  Write-Host "Agregando $InstallDir al PATH de usuario"
-  $newPath = ($env:Path.TrimEnd(';') + ';' + $InstallDir)
-  setx PATH $newPath | Out-Null
-  Write-Host "Abre una NUEVA consola para refrescar el PATH."
-} else {
-  Write-Host "$InstallDir ya está en PATH"
+# === 3) Asegurar PATH de usuario (persistente de verdad)
+$InstallDirClean = $InstallDir.TrimEnd('\')
+$registryPath = "HKCU:\Environment"
+$currentPath  = (Get-ItemProperty -Path $registryPath -Name Path -ErrorAction SilentlyContinue).Path
+
+if ($null -eq $currentPath) {
+    $currentPath = ""
 }
+
+# Comprobar si ya está
+if ($currentPath -notmatch [regex]::Escape($InstallDirClean)) {
+    Write-Host "➕ Añadiendo $InstallDirClean al PATH de usuario (registro)..."
+    if ($currentPath.EndsWith(';')) {
+        $newPath = "$currentPath$InstallDirClean"
+    } else {
+        $newPath = "$currentPath;$InstallDirClean"
+    }
+    Set-ItemProperty -Path $registryPath -Name Path -Value $newPath
+    Write-Host "✅ PATH actualizado en el registro del usuario."
+} else {
+    Write-Host "✔ $InstallDirClean ya está en el PATH del usuario."
+}
+
+# Refrescar PATH actual para que funcione sin reiniciar
+$env:Path += ";$InstallDirClean"
 
 # === 4) Crear shims .cmd para invocar los .ps1 sin extensión
 Get-ChildItem -Path $InstallDir -Filter *.ps1 -File | ForEach-Object {

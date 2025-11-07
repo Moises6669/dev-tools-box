@@ -1,6 +1,10 @@
 param(
-  [Parameter(Mandatory=$true)] [string]$Sql,
+  [Parameter(Position=0, Mandatory=$true)]
+  [string]$Sql,
+
+  [Parameter(Position=1)]
   [string]$DbName,
+
   [string]$User = "root",
   [string]$DbHost = "127.0.0.1",
   [int]$Port = 3306
